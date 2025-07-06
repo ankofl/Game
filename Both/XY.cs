@@ -134,7 +134,7 @@ namespace Both
 		// Строковое представление
 		public override string ToString()
 		{
-			return $"({X}, {Y})";
+			return $"{X:F2} {Y:F2}";
 		}
 	}
 }

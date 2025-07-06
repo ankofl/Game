@@ -5,16 +5,16 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Client"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MainWindow" 
+        WindowStyle="None" 
+        WindowState="Maximized">
 	<Grid>
-		<Canvas x:Name="MainCanvas">
-			<!-- Фон как большой прямоугольник -->
-			<Rectangle x:Name="BackgroundRect" Width="1000" Height="1000" Fill="LightGray"/>
-		</Canvas>
+		<Canvas x:Name="MainCanvas"/>
 		<StackPanel VerticalAlignment="Bottom" Margin="10">
 			<TextBlock x:Name="PositionText" Text="Position: (0, 0)" Margin="5"/>
 			<TextBlock x:Name="FpsText" Text="FPS: 0" Margin="5"/>
-			<Button Content="Move Right" Click="MoveRight_Click" Width="100" Margin="5"/>
+			<TextBlock x:Name="ChunksText" Text="Chunks: 0/0" Margin="5"/>
+			<Button Content="Exit" Click="Exit_Click" Width="100" Margin="5"/>
 		</StackPanel>
 	</Grid>
 </Window>
