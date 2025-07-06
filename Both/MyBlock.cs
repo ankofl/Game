@@ -9,6 +9,8 @@ namespace Both
 	public class MyBlock
 	{
 		public BlockType Type;
+		public double WorldX; // Мировая координата X
+		public double WorldY; // Мировая координата Y
 	}
 
 	public enum BlockType

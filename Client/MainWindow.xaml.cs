@@ -22,6 +22,9 @@ namespace Client
 		private MyGrid _worldGrid; // Сетка мира
 		private readonly double _blockSize = 50; // Размер блока в пикселях
 		private Dictionary<MyBlock, Rectangle> _blockRectangles; // Отображение блоков на прямоугольники
+		private XY _lastPlayerPos; // Последняя позиция для отслеживания изменений
+		private bool _needsChunkUpdate; // Флаг для обновления чанков
+		private XY _lastRenderedPos; // Последняя позиция для обновления текста
 
 		public MainWindow()
 		{
@@ -32,11 +35,13 @@ namespace Client
 
 			// Инициализация виртуальной позиции
 			playerPos = new XY(0, 0);
+			_lastPlayerPos = new XY(0, 0);
+			_lastRenderedPos = new XY(0, 0);
 
 			// Инициализация мира
 			_worldGrid = new MyGrid();
 			_blockRectangles = new Dictionary<MyBlock, Rectangle>();
-			InitializeWorld();
+			MyGridUtils.Initialize(_worldGrid, _blockRectangles, MainCanvas, _blockSize, playerPos, MainCanvas.ActualWidth, MainCanvas.ActualHeight);
 
 			// Создаем игрока (черный квадрат)
 			_player = new Rectangle
@@ -49,10 +54,10 @@ namespace Client
 			UpdatePlayerPosition();
 			MainCanvas.Children.Add(_player);
 
-			// Инициализация таймера для максимального FPS
+			// Инициализация таймера для ~60 FPS
 			_timer = new DispatcherTimer
 			{
-				Interval = TimeSpan.FromMilliseconds(1) // Минимальный интервал
+				Interval = TimeSpan.FromMilliseconds(16)
 			};
 			_timer.Tick += Update;
 			_timer.Start();
@@ -63,59 +68,10 @@ namespace Client
 			_fpsCounter = 0;
 
 			// Инициализация текста чанков
+			_needsChunkUpdate = true;
 			UpdateChunksText();
+			PositionText.Text = $"Игрок: {playerPos}";
 		}
-
-		// Инициализация мира
-		private void InitializeWorld()
-		{
-			Random rand = new Random();
-			for (int chunkX = 0; chunkX < MyGrid.GridSize; chunkX++)
-			{
-				for (int chunkY = 0; chunkY < MyGrid.GridSize; chunkY++)
-				{
-					MyChunk chunk = new MyChunk(); // Конструктор инициализирует Blocks
-					for (int blockX = 0; blockX < MyChunk.ChunkSize; blockX++)
-					{
-						for (int blockY = 0; blockY < MyChunk.ChunkSize; blockY++)
-						{
-							BlockType type = (BlockType)rand.Next(Enum.GetValues(typeof(BlockType)).Length);
-							chunk.Blocks[blockX + blockY * MyChunk.ChunkSize] = new MyBlock { Type = type };
-
-							Rectangle blockRect = new Rectangle
-							{
-								Width = _blockSize,
-								Height = _blockSize,
-								Fill = GetBlockBrush(type)
-							};
-							double worldX = (chunkX * MyChunk.ChunkSize + blockX) * _blockSize;
-							double worldY = (chunkY * MyChunk.ChunkSize + blockY) * _blockSize;
-							Canvas.SetLeft(blockRect, worldX);
-							Canvas.SetTop(blockRect, worldY);
-							MainCanvas.Children.Add(blockRect);
-							_blockRectangles[chunk.Blocks[blockX + blockY * MyChunk.ChunkSize]] = blockRect;
-						}
-					}
-					_worldGrid.Chunks[chunkX + chunkY * MyGrid.GridSize] = chunk;
-				}
-			}
-		}
-
-		// Получение кисти для типа блока
-		private static SolidColorBrush GetBlockBrush(BlockType type)
-		{
-			return type switch
-			{
-				BlockType.Grass => Brushes.Green,
-				BlockType.Stone => Brushes.Gray,
-				BlockType.Wood => Brushes.Brown,
-				BlockType.Water => Brushes.Blue,
-				_ => Brushes.Black
-			};
-		}
-
-		// Проверка, виден ли чанк
-		
 
 		// Обновление текста количества чанков
 		private void UpdateChunksText()
@@ -123,11 +79,13 @@ namespace Client
 			int totalChunks = MyGrid.GridSize * MyGrid.GridSize;
 			int loadedChunks = 0;
 
-			for (int chunkX = 0; chunkX < MyGrid.GridSize; chunkX++)
+			var (minChunkX, maxChunkX, minChunkY, maxChunkY) = MyGridUtils.GetVisibleChunkRange(_blockSize, playerPos, MainCanvas.ActualWidth, MainCanvas.ActualHeight);
+			for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++)
 			{
-				for (int chunkY = 0; chunkY < MyGrid.GridSize; chunkY++)
+				for (int chunkY = minChunkY; chunkY <= maxChunkY; chunkY++)
 				{
-					if (IsChunkVisible(chunkX, chunkY))
+					if (chunkX >= 0 && chunkX < MyGrid.GridSize && chunkY >= 0 && chunkY < MyGrid.GridSize &&
+						MyGridUtils.IsChunkVisible(chunkX, chunkY, _blockSize, playerPos, MainCanvas.ActualWidth, MainCanvas.ActualHeight))
 					{
 						loadedChunks++;
 					}
@@ -135,22 +93,13 @@ namespace Client
 			}
 
 			ChunksText.Text = $"Чанки: {loadedChunks}/{totalChunks}";
+			_needsChunkUpdate = false;
 		}
+
+		// Проверка, виден ли чанк
 		private bool IsChunkVisible(int chunkX, int chunkY)
 		{
-			// Мировые координаты чанка
-			double chunkWorldX = chunkX * MyChunk.ChunkSize * _blockSize;
-			double chunkWorldY = chunkY * MyChunk.ChunkSize * _blockSize;
-			double chunkWidth = MyChunk.ChunkSize * _blockSize;
-			double chunkHeight = chunkWidth;
-
-			// Экранные координаты чанка (с учетом смещения мира)
-			double screenX = chunkWorldX - playerPos.X + MainCanvas.ActualWidth / 2;
-			double screenY = chunkWorldY - playerPos.Y + MainCanvas.ActualHeight / 2;
-
-			// Проверка пересечения с окном
-			return screenX + chunkWidth >= 0 && screenX <= MainCanvas.ActualWidth &&
-				   screenY + chunkHeight >= 0 && screenY <= MainCanvas.ActualHeight;
+			return MyGridUtils.IsChunkVisible(chunkX, chunkY, _blockSize, playerPos, MainCanvas.ActualWidth, MainCanvas.ActualHeight);
 		}
 
 		// Обновление позиции игрока (всегда в центре)
@@ -165,6 +114,8 @@ namespace Client
 		{
 			base.OnRenderSizeChanged(sizeInfo);
 			UpdatePlayerPosition();
+			MyGridUtils.UpdateVisibleBlocks(_worldGrid, _blockRectangles, MainCanvas, _blockSize, playerPos, MainCanvas.ActualWidth, MainCanvas.ActualHeight);
+			_needsChunkUpdate = true;
 			UpdateChunksText();
 		}
 
@@ -174,7 +125,7 @@ namespace Client
 			Application.Current.Shutdown();
 		}
 
-		// Метод Update, вызываемый с максимальной частотой
+		// Метод Update, вызываемый ~60 FPS
 		private void Update(object sender, EventArgs e)
 		{
 			// Вычисляем DeltaTime
@@ -190,7 +141,10 @@ namespace Client
 				FpsText.Text = $"FPS: {(int)(_fpsCounter / _fpsTimer)}";
 				_fpsCounter = 0;
 				_fpsTimer = 0;
-				UpdateChunksText(); // Обновляем чанки раз в секунду
+				if (_needsChunkUpdate)
+				{
+					UpdateChunksText();
+				}
 			}
 
 			// Получаем направление из MyInput
@@ -209,23 +163,40 @@ namespace Client
 			// Обновляем виртуальную позицию игрока
 			playerPos += move;
 
-			// Перемещаем блоки
-			foreach (var chunk in _worldGrid.Chunks)
+			// Ограничиваем позицию игрока
+			double worldWidth = MyGrid.GridSize * MyChunk.ChunkSize * _blockSize;
+			double worldHeight = worldWidth;
+			playerPos.X = Math.Max(0, Math.Min(playerPos.X, worldWidth));
+			playerPos.Y = Math.Max(0, Math.Min(playerPos.Y, worldHeight));
+
+			// Обновляем координаты видимых блоков
+			foreach (var pair in _blockRectangles)
 			{
-				foreach (var block in chunk.Blocks)
-				{
-					var rect = _blockRectangles[block];
-					double currentX = Canvas.GetLeft(rect);
-					double currentY = Canvas.GetTop(rect);
-					double newX = currentX - move.X;
-					double newY = currentY + move.Y;
-					Canvas.SetLeft(rect, newX);
-					Canvas.SetTop(rect, newY);
-				}
+				MyBlock block = pair.Key;
+				Rectangle rect = pair.Value;
+				double screenX = block.WorldX - playerPos.X + MainCanvas.ActualWidth / 2;
+				double screenY = block.WorldY + playerPos.Y + MainCanvas.ActualHeight / 2;
+				Canvas.SetLeft(rect, screenX);
+				Canvas.SetTop(rect, screenY);
 			}
 
-			// Обновляем текст с позицией игрока
-			PositionText.Text = $"Игрок: {playerPos}";
+			// Проверяем, изменилась ли позиция достаточно для обновления чанков
+			double deltaX = Math.Abs(playerPos.X - _lastPlayerPos.X);
+			double deltaY = Math.Abs(playerPos.Y - _lastPlayerPos.Y);
+			double chunkSize = MyChunk.ChunkSize * _blockSize;
+			if (deltaX >= chunkSize || deltaY >= chunkSize)
+			{
+				MyGridUtils.UpdateVisibleBlocks(_worldGrid, _blockRectangles, MainCanvas, _blockSize, playerPos, MainCanvas.ActualWidth, MainCanvas.ActualHeight);
+				_needsChunkUpdate = true;
+				_lastPlayerPos = new XY(playerPos.X, playerPos.Y);
+			}
+
+			// Обновляем текст позиции игрока с порогом для оптимизации
+			if (Math.Abs(playerPos.X - _lastRenderedPos.X) > 0.1 || Math.Abs(playerPos.Y - _lastRenderedPos.Y) > 0.1)
+			{
+				PositionText.Text = $"Игрок: {playerPos}";
+				_lastRenderedPos = new XY(playerPos.X, playerPos.Y);
+			}
 		}
 	}
 }
