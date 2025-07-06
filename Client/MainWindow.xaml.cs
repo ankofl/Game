@@ -1,7 +1,9 @@
 ﻿using Both;
+using Client.Utilities;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Shapes;
 using System.Windows.Threading;
 
 namespace Client
@@ -9,113 +11,149 @@ namespace Client
 	public partial class MainWindow : Window
 	{
 		private DispatcherTimer _timer;
-		private bool _isWPressed, _isAPressed, _isSPressed, _isDPressed;
 		private readonly double _speed = 150.0; // Скорость в пикселях/с
 		private double _lastUpdateTime; // Время последнего обновления в секундах
+		private MyInput _input; // Экземпляр класса для обработки ввода
+		private List<Rectangle> _greenSquares; // Список зеленых квадратов
+		private Rectangle _blueSquare; // Синий квадрат (персонаж)
+		private Rectangle _backgroundRect; // Фон
+		private XY _worldPosition; // Виртуальная позиция персонажа в мире
+		private double _fpsCounter; // Счетчик кадров для вычисления FPS
+		private double _fpsTimer; // Таймер для накопления времени для FPS
 
 		public MainWindow()
 		{
 			InitializeComponent();
 
-			// Инициализация таймера для 30 FPS (1000 мс / 30 ≈ 33.33 мс)
+			// Инициализация ввода
+			_input = new MyInput(this);
+
+			// Инициализация списка зеленых квадратов
+			_greenSquares = new List<Rectangle>();
+
+			// Инициализация виртуальной позиции
+			_worldPosition = new XY(0, 0);
+
+			// Создаем синий квадрат (персонаж)
+			_blueSquare = new Rectangle
+			{
+				Name = "Square",
+				Width = 50,
+				Height = 50,
+				Fill = Brushes.Blue
+			};
+			UpdateBlueSquarePosition();
+			MainCanvas.Children.Add(_blueSquare);
+
+			// Создаем 10 зеленых квадратов
+			for (int i = 0; i < 100; i++)
+			{
+				Rectangle greenSquare = new Rectangle
+				{
+					Width = 50,
+					Height = 50,
+					Fill = Brushes.Green
+				};
+				Canvas.SetLeft(greenSquare, 100 + (i + 1) * 60);
+				Canvas.SetTop(greenSquare, 100);
+				MainCanvas.Children.Add(greenSquare);
+				_greenSquares.Add(greenSquare);
+			}
+
+			// Сохраняем ссылку на фон
+			_backgroundRect = BackgroundRect;
+			Canvas.SetLeft(_backgroundRect, 0);
+			Canvas.SetTop(_backgroundRect, 0);
+
+			// Инициализация таймера для максимального FPS (интервал 1 мс)
 			_timer = new DispatcherTimer
 			{
-				Interval = TimeSpan.FromMilliseconds(1000.0 / 30.0)
+				Interval = TimeSpan.FromMilliseconds(1) // Минимальный интервал для максимального FPS
 			};
 			_timer.Tick += Update;
 			_timer.Start();
 
 			// Устанавливаем начальное время
 			_lastUpdateTime = DateTime.Now.Ticks / (double)TimeSpan.TicksPerSecond;
+			_fpsTimer = 0;
+			_fpsCounter = 0;
+		}
 
-			// Подключаем обработчики событий клавиатуры
-			KeyDown += MainWindow_KeyDown;
-			KeyUp += MainWindow_KeyUp;
+		// Обновление позиции синего квадрата (всегда в центре)
+		private void UpdateBlueSquarePosition()
+		{
+			Canvas.SetLeft(_blueSquare, MainCanvas.ActualWidth / 2 - _blueSquare.Width / 2);
+			Canvas.SetTop(_blueSquare, MainCanvas.ActualHeight / 2 - _blueSquare.Height / 2);
+		}
+
+		// Обработчик изменения размера окна
+		protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
+		{
+			base.OnRenderSizeChanged(sizeInfo);
+			UpdateBlueSquarePosition(); // Центрируем синий квадрат при изменении размера
 		}
 
 		// Обработчик нажатия кнопки "Move Right"
 		private void MoveRight_Click(object sender, RoutedEventArgs e)
 		{
-			MoveSquare(XY.Right * _speed * (1000.0 / 30.0 / 1000.0)); // Перемещение вправо за один кадр
+			// Перемещаем зеленые квадраты и фон влево
+			MoveWorld(XY.Right * 10); // Фиксированное перемещение для заметности
 		}
 
-		// Обработчик нажатия клавиш
-		private void MainWindow_KeyDown(object sender, KeyEventArgs e)
-		{
-			// Отмечаем, какие клавиши нажаты
-			if (e.Key == Key.A)
-				_isAPressed = true;
-			if (e.Key == Key.D)
-				_isDPressed = true;
-			if (e.Key == Key.W)
-				_isWPressed = true;
-			if (e.Key == Key.S)
-				_isSPressed = true;
-		}
-
-		// Обработчик отпускания клавиш
-		private void MainWindow_KeyUp(object sender, KeyEventArgs e)
-		{
-			// Отмечаем, какие клавиши отпущены
-			if (e.Key == Key.A)
-				_isAPressed = false;
-			if (e.Key == Key.D)
-				_isDPressed = false;
-			if (e.Key == Key.W)
-				_isWPressed = false;
-			if (e.Key == Key.S)
-				_isSPressed = false;
-		}
-
-		// Метод Update, вызываемый 30 раз в секунду
-		private void Update(object sender, System.EventArgs e)
+		// Метод Update, вызываемый с максимальной частотой
+		private void Update(object sender, EventArgs e)
 		{
 			// Вычисляем DeltaTime
 			double currentTime = DateTime.Now.Ticks / (double)TimeSpan.TicksPerSecond;
 			double deltaTime = currentTime - _lastUpdateTime;
 			_lastUpdateTime = currentTime;
 
-			var dir = XY.Zero;
+			// Обновляем FPS
+			_fpsCounter++;
+			_fpsTimer += deltaTime;
+			if (_fpsTimer >= 1.0) // Обновляем FPS каждую секунду
+			{
+				FpsText.Text = $"FPS: {(int)(_fpsCounter / _fpsTimer)}";
+				_fpsCounter = 0;
+				_fpsTimer = 0;
+			}
 
-			// Формируем вектор направления на основе нажатых клавиш
-			if (_isAPressed)
-				dir.X -= 1;
-			if (_isDPressed)
-				dir.X += 1;
-			if (_isWPressed)
-				dir.Y += 1; // W увеличивает Y (движение вверх из-за инверсии)
-			if (_isSPressed)
-				dir.Y -= 1; // S уменьшает Y (движение вниз из-за инверсии)
+			// Получаем направление из MyInput
+			var dir = _input.GetDirection();
 
-			// Нормализуем направление, чтобы скорость была одинаковой при движении по диагонали
+			// Перемещаем мир, если есть ненулевое направление
 			if (dir != XY.Zero)
 			{
-				dir = dir.Normalize();
-				MoveSquare(dir * _speed * deltaTime);
+				MoveWorld(dir * _speed * deltaTime);
 			}
 		}
 
-		// Метод для перемещения квадрата
-		private void MoveSquare(XY move)
+		// Метод для перемещения мира (зеленых квадратов и фона)
+		private void MoveWorld(XY move)
 		{
-			// Получаем текущие координаты
-			double currentX = Canvas.GetLeft(Square);
-			double currentY = Canvas.GetTop(Square);
+			// Обновляем виртуальную позицию персонажа
+			_worldPosition += move;
 
-			// Вычисляем новые координаты, инвертируя Y
-			double newX = currentX + move.X;
-			double newY = currentY - move.Y; // Инверсия: вычитаем move.Y
+			// Перемещаем зеленые квадраты в противоположном направлении
+			foreach (var square in _greenSquares)
+			{
+				double currentX = Canvas.GetLeft(square);
+				double currentY = Canvas.GetTop(square);
+				double newX = currentX - move.X; // Противоположное направление
+				double newY = currentY + move.Y; // Инверсия Y сохранена
 
-			// Проверяем, чтобы квадрат не выходил за пределы Canvas
-			newX = Math.Max(0, Math.Min(newX, MainCanvas.ActualWidth - Square.Width));
-			newY = Math.Max(0, Math.Min(newY, MainCanvas.ActualHeight - Square.Height));
+				Canvas.SetLeft(square, newX);
+				Canvas.SetTop(square, newY);
+			}
 
-			// Устанавливаем новые координаты
-			Canvas.SetLeft(Square, newX);
-			Canvas.SetTop(Square, newY);
+			// Перемещаем фон в противоположном направлении
+			double bgX = Canvas.GetLeft(_backgroundRect);
+			double bgY = Canvas.GetTop(_backgroundRect);
+			Canvas.SetLeft(_backgroundRect, bgX - move.X);
+			Canvas.SetTop(_backgroundRect, bgY + move.Y);
 
-			// Обновляем текст с координатами
-			PositionText.Text = $"Position: ({newX}, {newY})";
+			// Обновляем текст с виртуальной позицией персонажа
+			PositionText.Text = $"Position: ({_worldPosition.X:F2}, {_worldPosition.Y:F2})";
 		}
 	}
 }

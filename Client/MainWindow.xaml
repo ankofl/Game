@@ -7,12 +7,13 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
 	<Grid>
-		<Canvas x:Name="MainCanvas" Background="LightGray">
-			<Rectangle x:Name="Square" Width="50" Height="50" Fill="Blue"
-                       Canvas.Left="100" Canvas.Top="100"/>
+		<Canvas x:Name="MainCanvas">
+			<!-- Фон как большой прямоугольник -->
+			<Rectangle x:Name="BackgroundRect" Width="1000" Height="1000" Fill="LightGray"/>
 		</Canvas>
 		<StackPanel VerticalAlignment="Bottom" Margin="10">
-			<TextBlock x:Name="PositionText" Text="Position: (100, 100)" Margin="5"/>
+			<TextBlock x:Name="PositionText" Text="Position: (0, 0)" Margin="5"/>
+			<TextBlock x:Name="FpsText" Text="FPS: 0" Margin="5"/>
 			<Button Content="Move Right" Click="MoveRight_Click" Width="100" Margin="5"/>
 		</StackPanel>
 	</Grid>

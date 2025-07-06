@@ -9,12 +9,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server", "Server\Server.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Both", "Both\Both.csproj", "{F147839D-B4E3-4CF6-BA6C-D38FFB91D5B4}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Release", "Release", "{36D591C7-65C7-A0D1-1CBC-10CDE441BDC8}"
-	ProjectSection(SolutionItems) = preProject
-		Client\bin\x64\Release\net8.0-windows\Client.exe = Client\bin\x64\Release\net8.0-windows\Client.exe
-		Server\bin\x64\Release\net8.0\Server.exe = Server\bin\x64\Release\net8.0\Server.exe
-	EndProjectSection
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
