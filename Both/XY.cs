@@ -10,6 +10,13 @@ namespace Both
 		public static XY Left => new(-1, 0);
 		public static XY Right => new(1, 0);
 
+		public double Distance(XY other)
+		{
+			double deltaX = X - other.X;
+			double deltaY = Y - other.Y;
+			return Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
+		}
+
 		public XY Normalize()
 		{
 			double length = Length();

@@ -22,6 +22,8 @@ namespace Client
 
 		public MyPlayer Player;
 
+		public MyRender Render;
+
 		public MainWindow()
 		{
 			InitializeComponent();
@@ -32,13 +34,14 @@ namespace Client
 			_timer = UtilsTime.GetTimer();
 			_timer.Tick += Update;
 
+			Render = new MyRender(MainCanvas);
 
 			// Инициализация ввода
 			_input = new MyInput(this);
 
 			
 			// Инициализация мира
-			_worldGrid = new MyGrid(MainCanvas);
+			_worldGrid = new MyGrid();
 
 			Player = new MyPlayer();
 			MainCanvas.Children.Add(Player.Shape);
@@ -49,8 +52,6 @@ namespace Client
 			_lastUpdateTime = DateTime.Now.Ticks / (double)TimeSpan.TicksPerSecond;
 			_fpsTimer = 0;
 			_fpsCounter = 0;
-
-			_worldGrid.MoveWorld(Player.Pos);
 		}
 
 		// Обработчик нажатия кнопки "Выход"

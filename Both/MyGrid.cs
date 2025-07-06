@@ -6,17 +6,13 @@ namespace Both
 {
 	public class MyGrid
 	{
-		public Canvas Canvas;
 		public static readonly int GridSize = 10;
 		public XY Zero = new(0, 0);
 		public MyChunk[] Chunks;
 
-		public MyGrid(Canvas canvas)
+		public MyGrid()
 		{
-			Canvas = canvas;
-
 			Chunks = new MyChunk[GridSize * GridSize];
-			_blockRectangles = [];
 
 			Random rand = new Random();
 			for (int chunkX = 0; chunkX < GridSize; chunkX++)
@@ -40,45 +36,12 @@ namespace Both
 
 							chunk.Blocks[blockX + blockY * MyChunk.ChunkSize] = myBlock;
 
-							Rectangle block = new()
-							{
-								Width = MyBlock.blockSize,
-								Height = MyBlock.blockSize,
-								Fill = MyBlock.GetBlockBrush(type)
-							};
-
-
-							_blockRectangles.Add(myBlock, block);
-							Canvas.Children.Add(block);
+							
 						}
 					}
 					Chunks[chunkX + chunkY * GridSize] = chunk;
 				}
 			}
 		}
-
-		public Dictionary<MyBlock, Rectangle> _blockRectangles;
-
-		public void MoveWorld(XY playerPos)
-		{
-			if (!playerPos.Equals(LastPos))
-			{
-				LastPos = playerPos;
-				
-				// Обновляем координаты видимых блоков
-				foreach (var pair in _blockRectangles)
-				{
-					MyBlock block = pair.Key;
-					Rectangle rect = pair.Value;
-					double screenX = block.Pos.X - playerPos.X + MyScreen.Size.X / 2;
-					double screenY = block.Pos.Y + playerPos.Y + MyScreen.Size.Y / 2;
-					Canvas.SetLeft(rect, screenX);
-					Canvas.SetTop(rect, screenY);
-				}
-			}
-
-			
-		}
-		private XY LastPos = XY.Zero;
 	}
 }
