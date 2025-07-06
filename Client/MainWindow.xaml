@@ -5,9 +5,9 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Client"
         mc:Ignorable="d"
-        Title="MainWindow" 
-        WindowStyle="None" 
-        WindowState="Maximized">
+        Title="MainWindow"
+        WindowStyle="None">
+		<!--WindowState="Maximized">-->
 	<Grid>
 		<Canvas x:Name="MainCanvas"/>
 		<StackPanel VerticalAlignment="Bottom" Margin="10">
